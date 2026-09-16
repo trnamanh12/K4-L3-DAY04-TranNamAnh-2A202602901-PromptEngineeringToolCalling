@@ -1,10 +1,50 @@
-from __future__ import annotations
-
+from collections import deque
 import json
 import os
+import re
+import threading
+import time
 from typing import Any
 
 from providers.base import ModelResponse, ToolCall
+
+
+class RateLimiter:
+    """Sliding window and interval rate limiter to cap requests per minute."""
+
+    def __init__(self, max_requests: int = 15, period: float = 60.0) -> None:
+        self.max_requests = max_requests
+        self.period = period
+        self.min_interval = period / max_requests  # e.g., 4.0s for 15 RPM
+        self.timestamps: deque[float] = deque()
+        self._last_call: float = 0.0
+        self._lock = threading.Lock()
+
+    def wait_if_needed(self) -> None:
+        with self._lock:
+            now = time.time()
+            # 1. Slide window: discard timestamps older than period (60s)
+            while self.timestamps and now - self.timestamps[0] >= self.period:
+                self.timestamps.popleft()
+
+            # If quota for the window is reached, sleep until earliest timestamp expires
+            if len(self.timestamps) >= self.max_requests:
+                sleep_duration = (self.timestamps[0] + self.period) - now
+                if sleep_duration > 0:
+                    time.sleep(sleep_duration)
+                now = time.time()
+                while self.timestamps and now - self.timestamps[0] >= self.period:
+                    self.timestamps.popleft()
+
+            # 2. Smooth bursts: enforce minimum interval between consecutive calls
+            elapsed = now - self._last_call
+            if elapsed < self.min_interval:
+                sleep_duration = self.min_interval - elapsed
+                time.sleep(sleep_duration)
+                now = time.time()
+
+            self.timestamps.append(now)
+            self._last_call = now
 
 
 def _to_gemini_declarations(tools: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
@@ -73,10 +113,16 @@ class GeminiProvider:
         self,
         *,
         api_key_env: str = "GEMINI_API_KEY",
-        default_model: str = "gemini-3.5-flash",
+        default_model: str = "gemini-3.5-flash-lite",
+        requests_per_minute: int = 15,
+        max_retries: int = 5,
+        base_delay: float = 4.0,
     ) -> None:
         self.api_key_env = api_key_env
         self.default_model = default_model
+        self.rate_limiter = RateLimiter(max_requests=requests_per_minute, period=60.0)
+        self.max_retries = max_retries
+        self.base_delay = base_delay
 
     def complete(
         self,
@@ -104,13 +150,65 @@ class GeminiProvider:
             config_kwargs["system_instruction"] = system_instruction
         if declarations:
             config_kwargs["tools"] = [types.Tool(function_declarations=declarations)]
+            if tool_choice == "required":
+                try:
+                    config_kwargs["tool_config"] = types.ToolConfig(
+                        function_calling_config=types.FunctionCallingConfig(
+                            mode=types.FunctionCallingConfigMode.ANY
+                        )
+                    )
+                except Exception:
+                    pass
+            elif tool_choice == "none":
+                try:
+                    config_kwargs["tool_config"] = types.ToolConfig(
+                        function_calling_config=types.FunctionCallingConfig(
+                            mode=types.FunctionCallingConfigMode.NONE
+                        )
+                    )
+                except Exception:
+                    pass
 
         client = genai.Client(api_key=api_key)
-        resp = client.models.generate_content(
-            model=model or self.default_model,
-            contents=contents,
-            config=types.GenerateContentConfig(**config_kwargs),
-        )
+
+        resp = None
+        for attempt in range(self.max_retries):
+            # Enforce 15 RPM limit before initiating the request
+            self.rate_limiter.wait_if_needed()
+            try:
+                resp = client.models.generate_content(
+                    model=model or self.default_model,
+                    contents=contents,
+                    config=types.GenerateContentConfig(**config_kwargs),
+                )
+                break
+            except Exception as exc:
+                exc_str = str(exc)
+                is_rate_limit = any(
+                    term in exc_str.lower()
+                    for term in ["429", "resource_exhausted", "quota", "rate limit"]
+                )
+                is_transient = any(
+                    term in exc_str.lower()
+                    for term in ["503", "unavailable", "timeout", "server error"]
+                )
+
+                if (is_rate_limit or is_transient) and attempt < self.max_retries - 1:
+                    sleep_time = self.base_delay * (2 ** attempt)
+                    match = re.search(r"retry\s+(?:in|after)\s+(\d+(?:\.\d+)?)s?", exc_str, re.IGNORECASE)
+                    if not match:
+                        match = re.search(r"seconds:\s*(\d+)", exc_str, re.IGNORECASE)
+                    if match:
+                        sleep_time = max(sleep_time, float(match.group(1)) + 1.0)
+
+                    print(
+                        f"[GeminiProvider] Rate limit / transient error on attempt {attempt + 1}/{self.max_retries}. "
+                        f"Retrying in {sleep_time:.1f}s... (Detail: {exc_str[:120]})",
+                        flush=True,
+                    )
+                    time.sleep(sleep_time)
+                    continue
+                raise
 
         text_parts: list[str] = []
         calls: list[ToolCall] = []
