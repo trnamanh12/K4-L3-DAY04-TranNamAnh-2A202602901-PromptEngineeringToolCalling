@@ -42,6 +42,7 @@
   * Thiết kế và chạy thử nghiệm 10 test case nhóm độc lập trong `starter_v0/data/eval_group.json` (5 single-turn, 5 multi-turn) đạt 10/10 PASS.
   * Thực thi kiểm thử an toàn đối kháng 12 case và ghi lại transcript trực tiếp trong `starter_v0/transcripts/`.
   * Hoàn thiện báo cáo kỹ thuật `starter_v0/artifacts/REPORT.md` và nhật ký `starter_v0/artifacts/version_log.csv`.
+  * Cài đặt UI Web trực quan hiển thị tool call, input, kết quả/lỗi, phiên bản và transcript.
 - **Quyết định, khó khăn và cách xử lý**:
   * *Khó khăn*: Ban đầu khi so sánh 2 máy tính (`H16`), LLM chỉ gọi tool `inspect_device` cho 1 máy rồi dừng lại.
   * *Cách xử lý*: Quyết định bổ sung chỉ dẫn rõ ràng về `Parallel Tool Calls and Comparisons` trong `system_prompt.md`, yêu cầu agent kích hoạt đồng thời nhiều tool call cho từng thực thể trong cùng một lượt.
@@ -53,4 +54,4 @@
   * Sử dụng Antigravity để phân tích trace lỗi, viết test cases và soạn thảo tài liệu.
   * Kiểm tra độc lập bằng cách chạy script đánh giá `run_eval.py` trên môi trường Conda `vin`, đối chiếu kết quả từng trường hợp trong file JSON và transcript log thực tế.
 - **Thời điểm đã tự nộp URL repo chung trên VLearn**:
-  * Dự kiến nộp trước mốc kiểm tra tại lớp và hoàn thành bản chốt trước 12:00 ngày hôm sau của lab.
+  * Thời điểm nộp 10:05:47 16/9/2026.
