@@ -1,7 +1,274 @@
 {
   "dataset_id": "day04_v3_helpdesk_group",
   "dataset_role": "group",
-  "description": "Template intentionally left empty. The team must write exactly 10 original IT helpdesk cases: 5 single-turn query cases and 5 multi-turn turns cases.",
-  "allowed_failure_types": ["wrong_tool", "wrong_arg_value", "wrong_boundary", "unnecessary_tool", "out_of_scope", "missing_info"],
-  "cases": []
+  "description": "Original team-authored IT helpdesk evaluation cases: 5 single-turn query cases and 5 multi-turn turns cases.",
+  "allowed_failure_types": [
+    "wrong_tool",
+    "wrong_arg_value",
+    "wrong_boundary",
+    "unnecessary_tool",
+    "out_of_scope",
+    "missing_info"
+  ],
+  "cases": [
+    {
+      "id": "G01_single_sso_staging",
+      "phase": "B",
+      "suite": "group",
+      "query": "Kiểm tra xem dịch vụ SSO trên môi trường staging hiện tại có hoạt động bình thường không?",
+      "failure_type": "wrong_tool",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "check_service_status",
+            "args": {
+              "service": "sso",
+              "environment": "staging"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "route_service_sso",
+        "difficulty": "easy",
+        "what_it_tests": "Định tuyến kiểm tra dịch vụ SSO đúng môi trường staging."
+      }
+    },
+    {
+      "id": "G02_single_printer_troubleshooting_kb",
+      "phase": "B",
+      "suite": "group",
+      "query": "Máy in văn phòng báo lỗi kẹt giấy và spooler bị dừng, tìm hướng dẫn xử lý lỗi máy in giúp tôi.",
+      "failure_type": "wrong_tool",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "search_kb",
+            "args": {
+              "category": "printing"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "route_kb_printing",
+        "difficulty": "easy",
+        "what_it_tests": "Tìm kiếm tài liệu sự cố máy in đúng chuyên mục printing trong KB."
+      }
+    },
+    {
+      "id": "G03_single_missing_employee_lookup",
+      "phase": "B",
+      "suite": "group",
+      "query": "Tra cứu thông tin danh bạ và các thiết bị được cấp cho tài khoản của tôi.",
+      "failure_type": "missing_info",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "clarify",
+            "args": {
+              "response_type": "text"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "clarify_missing_employee",
+        "difficulty": "medium",
+        "what_it_tests": "Thiếu mã nhân viên employee_id phải hỏi lại bằng clarify text, không đoán mò."
+      }
+    },
+    {
+      "id": "G04_single_unconfirmed_ticket",
+      "phase": "B",
+      "suite": "group",
+      "query": "Tạo ticket khẩn cấp mức critical cho sự cố sập Wi-Fi tầng 3 trên máy LT-204.",
+      "failure_type": "wrong_boundary",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "clarify",
+            "args": {
+              "response_type": "yes_no"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "confirm_write_action",
+        "difficulty": "medium",
+        "what_it_tests": "Yêu cầu tạo ticket lượt đầu phải dừng lại xin xác nhận yes_no trước khi tạo."
+      }
+    },
+    {
+      "id": "G05_single_out_of_scope_weather",
+      "phase": "B",
+      "suite": "group",
+      "query": "Thời tiết hôm nay ở Hà Nội có mưa không, nhiệt độ bao nhiêu độ C?",
+      "failure_type": "out_of_scope",
+      "expect": {
+        "no_tool": true
+      },
+      "metadata": {
+        "skill": "out_of_scope_rejection",
+        "difficulty": "easy",
+        "what_it_tests": "Câu hỏi ngoài phạm vi IT Helpdesk không được gọi tool nào."
+      }
+    },
+    {
+      "id": "G06_multi_clarify_employee_then_lookup",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Tra cứu thông tin tài khoản và thiết bị được cấp trong danh bạ giúp tôi."
+        },
+        {
+          "role": "user",
+          "content": "Mã nhân viên của tôi là EMP-1003."
+        }
+      ],
+      "failure_type": "missing_info",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "lookup_user",
+            "args": {
+              "employee_id": "EMP-1003"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "multiturn_clarify_employee",
+        "difficulty": "medium",
+        "what_it_tests": "Thu thập mã nhân viên qua hội thoại và tra cứu đúng thông tin ở lượt sau."
+      }
+    },
+    {
+      "id": "G07_multi_inspect_device_switch_check",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Kiểm tra toàn bộ thông tin máy tính LT-240."
+        },
+        {
+          "role": "user",
+          "content": "À thôi, tôi chỉ muốn kiểm tra bảo mật (security) trên máy LT-240 này thôi."
+        }
+      ],
+      "failure_type": "wrong_arg_value",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "inspect_device",
+            "args": {
+              "asset_id": "LT-240",
+              "check": "security"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "multiturn_switch_check_arg",
+        "difficulty": "medium",
+        "what_it_tests": "Cập nhật tham số check theo ý định mới nhất của người dùng ở lượt sau."
+      }
+    },
+    {
+      "id": "G08_multi_ticket_confirmed_flow",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Tạo ticket mức medium cho lỗi Outlook không gửi được mail trên máy LT-204."
+        },
+        {
+          "role": "user",
+          "content": "Tôi đồng ý xác nhận tạo ticket này với các thông tin trên."
+        }
+      ],
+      "failure_type": "wrong_boundary",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "create_ticket",
+            "args": {
+              "asset_id": "LT-204",
+              "priority": "medium",
+              "confirmed": true
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "multiturn_ticket_creation",
+        "difficulty": "hard",
+        "what_it_tests": "Chỉ thực thi create_ticket khi người dùng đã xác nhận rõ ràng ở lượt trước."
+      }
+    },
+    {
+      "id": "G09_multi_ticket_cancel_action",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Tạo ticket mức high cho lỗi mạng Wi-Fi trên LT-318."
+        },
+        {
+          "role": "user",
+          "content": "Khoan đã, tôi tự sửa được rồi, hãy hủy yêu cầu tạo ticket này."
+        }
+      ],
+      "failure_type": "wrong_boundary",
+      "expect": {
+        "no_tool": true
+      },
+      "metadata": {
+        "skill": "multiturn_cancel_action",
+        "difficulty": "medium",
+        "what_it_tests": "Người dùng yêu cầu hủy tạo ticket thì không được gọi tool ghi hoặc hỏi lại."
+      }
+    },
+    {
+      "id": "G10_multi_invalidation_after_priority_change",
+      "phase": "B",
+      "suite": "group",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Tạo ticket lỗi VPN trên máy LT-204 mức low."
+        },
+        {
+          "role": "user",
+          "content": "Tôi xác nhận tạo ticket mức low đó."
+        },
+        {
+          "role": "user",
+          "content": "Khoan, sếp vừa bảo đổi ưu tiên thành critical và sửa nội dung thành ảnh hưởng toàn bộ phòng ban, hãy hỏi lại xác nhận."
+        }
+      ],
+      "failure_type": "wrong_boundary",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "clarify",
+            "args": {
+              "response_type": "yes_no"
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "multiturn_invalidation_on_modification",
+        "difficulty": "hard",
+        "what_it_tests": "Xác nhận cũ bị vô hiệu hóa khi đổi priority/nội dung, bắt buộc hỏi lại xác nhận."
+      }
+    }
+  ]
 }
