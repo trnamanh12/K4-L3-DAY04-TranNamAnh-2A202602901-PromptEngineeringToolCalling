@@ -20,7 +20,11 @@ Agent là trợ lý IT Helpdesk thông minh cho doanh nghiệp (Northstar Labs),
 
 **Link dùng thử:**
 
-> Chạy CLI chat có ghi transcript đầy đủ: `conda run -n vin python chat.py --provider gemini --version v3`
+> **Chạy Web UI trực quan (đầy đủ tool calling, input parameters, kết quả/lỗi công cụ, phiên bản artifact và transcript viewer):**  
+> `conda run -n vin python app.py` (truy cập tại `http://localhost:7860`)  
+>  
+> **Chạy CLI chat truyền thống:**  
+> `conda run -n vin python chat.py --provider gemini --version v3`
 
 ## A2. Tool agent có
 

@@ -77,6 +77,13 @@ python run_eval.py --provider openrouter --version v0 --suite base --eval-cases 
 
 Thay `openrouter` bằng `openai`, `anthropic` hoặc `gemini` khi dùng provider khác. Không commit `.env`.
 
+Khởi chạy giao diện Web UI trực quan (xem tool calling, input, kết quả/lỗi, phiên bản và transcript):
+```powershell
+python app.py
+# hoặc trong môi trường conda vin:
+conda run -n vin python app.py
+```
+
 ## Tài liệu cần đọc
 
 | File | Dùng khi |
