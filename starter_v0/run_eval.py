@@ -270,6 +270,8 @@ def main() -> None:
     parser.add_argument("--tools", type=Path, default=ARTIFACTS_DIR / "tools.yaml")
     parser.add_argument("--eval-cases", type=Path, default=DATA_DIR / "eval_base.json")
     parser.add_argument("--runs-dir", type=Path, default=ROOT / "runs")
+    parser.add_argument("--skip-preflight", action="store_true", help="Skip pre-flight connectivity/quota check.")
+    parser.add_argument("--max-consecutive-errors", type=int, default=3, help="Max consecutive provider errors before aborting early.")
     args = parser.parse_args()
 
     system_prompt = args.system_prompt.read_text(encoding="utf-8")
@@ -285,7 +287,19 @@ def main() -> None:
     validate_expected_tools(cases, tool_declarations, args.eval_cases)
     openai_tools = to_openai_tools(tool_declarations)
 
+    if not args.skip_preflight:
+        print(f"Checking provider '{args.provider}' status (pre-flight check)...", flush=True)
+        try:
+            provider.complete([{"role": "user", "content": "ping"}], model=args.model)
+            print(f"Provider '{args.provider}' is ready.\n", flush=True)
+        except Exception as exc:
+            print(f"\n[FATAL] Pre-flight check failed for provider '{args.provider}':", flush=True)
+            print(f"  {type(exc).__name__}: {exc}\n", flush=True)
+            print("Please check your API key, network connection, or quota before proceeding.", flush=True)
+            raise SystemExit(1)
+
     results: list[dict[str, Any]] = []
+    consecutive_provider_errors = 0
     for case in cases:
         print(f"Running {case['id']}...", flush=True)
         agent = HelpdeskAgent(provider, system_prompt=system_prompt, tools=openai_tools, model=args.model)
@@ -298,6 +312,7 @@ def main() -> None:
         except Exception as exc:
             calls = []
             tool_results = []
+            print(f"  [ERROR] {case['id']} failed: {type(exc).__name__}: {exc}", flush=True)
             result = {
                 "passed": False,
                 "failure_type": "provider_error",
@@ -321,6 +336,18 @@ def main() -> None:
             "result": result,
             "tool_results": tool_results,
         })
+
+        if result.get("failure_type") == "provider_error":
+            consecutive_provider_errors += 1
+            if consecutive_provider_errors >= args.max_consecutive_errors:
+                print(
+                    f"\n[ABORT] {consecutive_provider_errors} consecutive provider errors encountered. "
+                    "Aborting run early to avoid unnecessary failures.",
+                    flush=True,
+                )
+                break
+        else:
+            consecutive_provider_errors = 0
 
     summary = summarize(results)
     args.runs_dir.mkdir(parents=True, exist_ok=True)
